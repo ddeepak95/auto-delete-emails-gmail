@@ -1,0 +1,1 @@
+# auto-delete-emails-gmail
