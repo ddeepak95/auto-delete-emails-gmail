@@ -1,86 +1,50 @@
+const PARENT_LABEL_NAME = "Auto Delete"; 
+const RETENTION_PERIODS = ["7", "30", "60"]; // Optional retention periods for emails
 
-function onGmailOpen(e) {
-  var card = createMainCard();
-  return card;
+function installAddon(){
+  createLabels();
+  createDailyTrigger();
+  Logger.log("Add on installed successfully!")
 }
 
-function createMainCard() {
-  var card = CardService.newCardBuilder();
-  
-  var section = CardService.newCardSection();
-  
-  var isEnabled = isAutoDeleteEnabled() === 'true'; // Check if enabled
-
-  // Add the button below the switch control 
-
-  var switchControl = CardService.newDecoratedText()
-    .setTopLabel("Enable Daily Auto Deletion")
-    .setSwitchControl(CardService.newSwitch()
-      .setFieldName("autoDeleteEnabled")
-      .setValue('true')
-      .setSelected(isEnabled)
-      .setOnChangeAction(CardService.newAction().setFunctionName("handleSwitchChange")));
-
-  section.addWidget(switchControl);
-  
-  card.addSection(section);
-  card.addSection(howToUseSection())
-  // card.addSection(testAddonSection())
-  card.addSection(disclaimerSection())
-  
-  return card.build();
-}
-
-function howToUseSection(){
-  var section = CardService.newCardSection();
-  section.setHeader('How to use');
-  section.addWidget(CardService.newTextParagraph().setText('Auto Delete Emails add-on in Gmail automatically checks your mailbox daily at 2am GMT and deletes the emails labelled <b>Auto Delete</b>. It also lets you set custom retention periods for different types of emails; for instance, you can configure to delete Amazon order updates after 30 days whereas delete Google Security Alerts after just 7 days.<br><br><a href="https://notebook.ddeepak95.com/tools/auto-delete-emails" target="_blank">Check out this link for set up instructions</a>'));
-  return section
-}
-
-function testAddonSection(){
-  var section = CardService.newCardSection();
-  section.setHeader('Test the add-on');
-  section.addWidget(CardService.newTextParagraph().setText('You can test the add-on by adding the <b>Auto Delete</b> label to some of your unwanted emails and clicking the button below. The add-on will automatically delete the labeled emails immediately.'));
-  var deleteButton = CardService.newTextButton()
-    .setText("Test Add-on")
-    .setOnClickAction(CardService.newAction().setFunctionName("testAddOn"));
-
-  section.addWidget(deleteButton);
-  return section
+function deleteAddon(){
+  deleteLabels();
+  deleteDailyTriggers();
+  Logger.log("Add on removed successfully!")
 }
 
 
-function disclaimerSection(){
-  var section = CardService.newCardSection();
-  section.setHeader('Disclaimer');
-  section.addWidget(CardService.newTextParagraph().setText('The developer doesn\'t have access to any of your data and the developer is not responsible for any data loss by mistake.'));
-  return section
+function createLabels() {
+  // Create the parent label
+  var parentLabel = GmailApp.createLabel(PARENT_LABEL_NAME);
+
+  // Create child labels nested under the parent label
+  RETENTION_PERIODS.forEach(function(childLabel) {
+    GmailApp.createLabel(PARENT_LABEL_NAME + "/" + childLabel);
+  });
+
+  Logger.log('Labels created successfully!');
 }
 
-function handleSwitchChange(e) {
-  var formInputs = e.commonEventObject.formInputs;
-  
-  var isEnabled = formInputs && formInputs.hasOwnProperty('autoDeleteEnabled') ? 'true' : 'false';
-  
-  PropertiesService.getUserProperties().setProperty('AUTO_DELETE_ENABLED', isEnabled);
-  
-  if (isEnabled === 'true') {
-    createDailyTrigger();
-  } else {
-    deleteDailyTriggers();
+function deleteLabels() {
+
+  // Delete child labels nested under the parent label
+  RETENTION_PERIODS.forEach(function(childLabel) {
+    var label = GmailApp.getUserLabelByName(parentLabelName + "/" + childLabel);
+    if (label) {
+      label.deleteLabel();
+    }
+  });
+
+  // Delete the parent label
+  var parentLabel = GmailApp.getUserLabelByName(PARENT_LABEL_NAME);
+  if (parentLabel) {
+    parentLabel.deleteLabel();
   }
-  
-  var card = createMainCard(); // Get the updated card
-  return CardService.newActionResponseBuilder()
-    .setNavigation(CardService.newNavigation().updateCard(card)) // Pass the Card object
-    .build();
+
+  Logger.log('Labels deleted successfully');
 }
 
-function isAutoDeleteEnabled() {
-  var isEnabled = PropertiesService.getUserProperties().getProperty('AUTO_DELETE_ENABLED');
-  return isEnabled === 'true' ? 'true' : 'false'; // Ensure default is 'false'
-}
 
 function createDailyTrigger() {
   deleteDailyTriggers(); // Delete any existing triggers first
@@ -89,6 +53,7 @@ function createDailyTrigger() {
     .atHour(2)  // Set the hour you want the script to run (24-hour format)
     .everyDays(1)  // Run the script every day
     .create();
+  Logger.log("Daily Triggers created successfully!")
 }
 
 function deleteDailyTriggers() {
@@ -100,26 +65,6 @@ function deleteDailyTriggers() {
   }
 }
 
-
-const PARENT_LABEL_NAME = "Auto Delete"; // Replace with your actual parent label name
-const MAX_RUNTIME_MS = 40000; // 40 seconds
-const BATCH_SIZE = 100; // Adjust as needed
-
-
-
-function testAddOn() {
-  alertInfo();
-  deleteOldEmails();
-}
-
-function alertInfo(){
-    var actionResponse = CardService.newActionResponseBuilder()
-    .setNotification(CardService.newNotification()
-      .setText("It might take some time to delete the emails based on the number of emails. Please refresh and check after sometime!"))
-    .build();
-
-  return actionResponse;
-}
 
 function deleteOldEmails() {
   deleteRetainedEmails();
